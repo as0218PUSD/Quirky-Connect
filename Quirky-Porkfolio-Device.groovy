@@ -1,4 +1,4 @@
- /* Quirky Porkfolio
+/* Quirky Porkfolio
  *
  *  Author: todd@wackford.net
  *  Date: 2014-02-22
@@ -68,6 +68,9 @@ def parse(description) {
 	log.debug "parse() - $description"
 	def results = []
 
+    if ( description == "updated" ) // on initial install we are returned just a string
+    	return
+        
 	if (description?.name && description?.value)
 	{
 		results << sendEvent(name: "${description?.name}", value: "${description?.value}")
