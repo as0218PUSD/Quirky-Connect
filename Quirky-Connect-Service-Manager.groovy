@@ -72,34 +72,39 @@ import java.text.DecimalFormat
 import groovy.json.JsonSlurper
 
 // Wink API stuff
-private apiUrl() 			{ "https://winkapi.quirky.com/" }
+private apiUrl() 		{ "https://winkapi.quirky.com/" }
 private getVendorName() 	{ "Quirky Wink" }
 private getVendorAuthPath()	{ "https://winkapi.quirky.com/oauth2/authorize?" }
-private getVendorTokenPath(){ "https://winkapi.quirky.com/oauth2/token?" }
+private getVendorTokenPath()	{ "https://winkapi.quirky.com/oauth2/token?" }
 private getVendorIcon()		{ "https://s3.amazonaws.com/smartapp-icons/Partner/quirky@2x.png" }
-private getClientId() 		{ "c22d82a7fc3d6faf06dcff1bcf0feb52" } // Dan Lieberman's
-private getClientSecret() 	{ "bd44c524a1df9dce134235d174350603" }
-
-private getServerUrl() 		{ "https://graph.api.smartthings.com" }
+private getClientId() 		{ appSettings.clientId }
+private getClientSecret() 	{ appSettings.clientSecret }
+private getServerUrl() 		{ appSettings.serverUrl }
 
 
 // Automatically generated. Make future change here.
 definition(
-    name: "Quirky (Connect)",
-    namespace: "wackford",
-    author: "Todd Wackford",
-    description: "Connect your Quirky to SmartThings.",
-    category: "My Apps",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/quirky.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/quirky@2x.png",
-    oauth: true
-)
+		name: "Quirky (Connect)",
+		namespace: "wackford",
+		author: "Todd Wackford",
+		description: "Connect your Quirky to SmartThings.",
+		category: "My Apps",
+		iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/quirky.png",
+		iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/quirky@2x.png",
+		oauth: true
+) {
+	appSetting "clientId"
+	appSetting "clientSecret"
+	appSetting "serverUrl"
+	appSetting "vendorAccessToken"
+	appSetting "vendorRefreshToken"
+}
 
 mappings {
 	path("/receivedToken") 			{ action:[ POST: "receivedToken", 				GET: "receivedToken"] }
 	path("/receiveToken") 			{ action:[ POST: "receiveToken", 				GET: "receiveToken"] }
-    path("/propaneTankCallback")	{ action:[ POST: "propaneTankEventHandler",		GET: "subscriberIdentifyVerification"]}
-    path("/airConditionerCallback")	{ action:[ POST: "airConditionerEventHandler",	GET: "subscriberIdentifyVerification"]}
+	path("/propaneTankCallback")	{ action:[ POST: "propaneTankEventHandler",		GET: "subscriberIdentifyVerification"]}
+	path("/airConditionerCallback")	{ action:[ POST: "airConditionerEventHandler",	GET: "subscriberIdentifyVerification"]}
 	path("/powerstripCallback")		{ action:[ POST: "powerstripEventHandler",		GET: "subscriberIdentifyVerification"]}
 	path("/sensor_podCallback") 	{ action:[ POST: "sensor_podEventHandler",		GET: "subscriberIdentifyVerification"]}
 	path("/piggy_bankCallback") 	{ action:[ POST: "piggy_bankEventHandler",		GET: "subscriberIdentifyVerification"]}
@@ -108,8 +113,8 @@ mappings {
 }
 
 preferences {
-    page(name: "Credentials", title: "Fetch OAuth2 Credentials", content: "authPage", install: false)
-	page(name: "listDevices", title: "Quirky Devices", content: "listDevices", install: false)    
+	page(name: "Credentials", title: "Fetch OAuth2 Credentials", content: "authPage", install: false)
+	page(name: "listDevices", title: "Quirky Devices", content: "listDevices", install: false)
 }
 
 def installed() {
@@ -120,8 +125,8 @@ def installed() {
 
 def updated() {
 	log.debug "Updated with settings: ${settings}"
-    
-    unschedule()
+
+	unschedule()
 	schedule("5 0,12 * * * ?", updateWinkSubscriptions) //renew subscriptions every 12 hours
 	initialize()
 
@@ -134,7 +139,7 @@ def listDevices()
 
 	def devices = getDeviceList()
 	log.debug "Device List = ${devices}"
-    log.debug "Settings List = ${settings}"
+	log.debug "Settings List = ${settings}"
 
 	dynamicPage(name: "listDevices", title: "Choose devices", install: true) {
 		section("Devices") {
@@ -164,63 +169,63 @@ def getDeviceList()
 										  'subsPath': "/propane_tanks/${it.propane_tank_id}/subscriptions"
 				])
 			}
-            
+
 			if ( it.air_conditioner_id ) {
 				deviceList["${it.air_conditioner_id}"] = it.name
 				state.deviceDataArr.push(['name'       : it.name,
-										     'id'      : it.air_conditioner_id,
-										     'type'    : "air_conditioner",
-										     'serial'  : it.serial,
-										     'data'    : it,
-										     'subsSuff': "/airConditionerCallback",
-										     'subsPath': "/air_conditioners/${it.air_conditioner_id}/subscriptions"
+										  'id'      : it.air_conditioner_id,
+										  'type'    : "air_conditioner",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/airConditionerCallback",
+										  'subsPath': "/air_conditioners/${it.air_conditioner_id}/subscriptions"
 				])
 			}
-                                
+
 			if ( it.cloud_clock_id ) {
-            	//log.debug "${it.dials[0]}"
-                def dial1Data = it.dials[0]
-                deviceList[dial1Data.dial_id] =     it.name + " Dial 1"
-                state.deviceDataArr.push(['name'  : it.name + " Dial 1",
-                						'id'      : dial1Data.dial_id,
-										'type'    : "nimbusDial",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/cloud_clockCallback",
-										'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
+				//log.debug "${it.dials[0]}"
+				def dial1Data = it.dials[0]
+				deviceList[dial1Data.dial_id] =     it.name + " Dial 1"
+				state.deviceDataArr.push(['name'  : it.name + " Dial 1",
+										  'id'      : dial1Data.dial_id,
+										  'type'    : "nimbusDial",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/cloud_clockCallback",
+										  'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
 				])
-                def dial2Data = it.dials[1]
-                deviceList[dial2Data.dial_id] =     it.name + " Dial 2"
-                state.deviceDataArr.push(['name'  : it.name + " Dial 2",
-                						'id'      : dial2Data.dial_id,
-										'type'    : "nimbusDial",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/cloud_clockCallback",
-										'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
+				def dial2Data = it.dials[1]
+				deviceList[dial2Data.dial_id] =     it.name + " Dial 2"
+				state.deviceDataArr.push(['name'  : it.name + " Dial 2",
+										  'id'      : dial2Data.dial_id,
+										  'type'    : "nimbusDial",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/cloud_clockCallback",
+										  'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
 				])
-                def dial3Data = it.dials[2]
-                deviceList[dial3Data.dial_id] =     it.name + " Dial 3"
-                state.deviceDataArr.push(['name'  : it.name + " Dial 3",
-                						'id'      : dial3Data.dial_id,
-										'type'    : "nimbusDial",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/cloud_clockCallback",
-										'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
+				def dial3Data = it.dials[2]
+				deviceList[dial3Data.dial_id] =     it.name + " Dial 3"
+				state.deviceDataArr.push(['name'  : it.name + " Dial 3",
+										  'id'      : dial3Data.dial_id,
+										  'type'    : "nimbusDial",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/cloud_clockCallback",
+										  'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
 				])
-                def dial4Data = it.dials[3]
-                deviceList[dial4Data.dial_id] =     it.name + " Dial 4"
-                state.deviceDataArr.push(['name'  : it.name + " Dial 4",
-                						'id'      : dial4Data.dial_id,
-										'type'    : "nimbusDial",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/cloud_clockCallback",
-										'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
+				def dial4Data = it.dials[3]
+				deviceList[dial4Data.dial_id] =     it.name + " Dial 4"
+				state.deviceDataArr.push(['name'  : it.name + " Dial 4",
+										  'id'      : dial4Data.dial_id,
+										  'type'    : "nimbusDial",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/cloud_clockCallback",
+										  'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
 				])
-                
-                //dials are handled individually now, commented out
+
+				//dials are handled individually now, commented out
 				/*deviceList["${it.cloud_clock_id}"] = it.name
 				state.deviceDataArr.push(['name'   : it.name,
 										  'id'     : it.cloud_clock_id,
@@ -230,57 +235,57 @@ def getDeviceList()
 										  'subsSuff': "/cloud_clockCallback",
 										  'subsPath': "/cloud_clocks/${it.cloud_clock_id}/subscriptions"
 				])*/
-			} 
-            
-			if ( it.powerstrip_id ) {
-            	def outlet1Data = it.outlets[0]
-                deviceList[outlet1Data.outlet_id] = it.name + " " + outlet1Data.name
-                state.deviceDataArr.push(['name'  : it.name + " " + outlet1Data.name,
-										'id'      : outlet1Data.outlet_id,
-										'type'    : "powerstripOutlet",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/powerstripCallback",
-										'subsPath': "/powerstrips/${it.powerstrip_id}/subscriptions"
-				])
-                
-                def outlet2Data = it.outlets[1]
-                deviceList[outlet2Data.outlet_id] = it.name + " " + outlet2Data.name
-                state.deviceDataArr.push(['name'  : it.name + " " + outlet2Data.name,
-										'id'      : outlet2Data.outlet_id,
-										'type'    : "powerstripOutlet",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/powerstripCallback",
-										'subsPath': "/powerstrips/${it.powerstrip_id}/subscriptions"
-				])
-                
-                //this is commented out cuz we install and handle outlets individualy
-                /* 
-				deviceList["${it.powerstrip_id}"] = it.name
-				state.deviceDataArr.push(['name'  : it.name,
-										'id'      : it.powerstrip_id,
-										'type'    : "powerstrip",
-										'serial'  : it.serial,
-										'data'    : it,
-										'subsSuff': "/powerstripCallback",
-										'subsPath': "/powerstrips/${it.powerstrip_id}/subscriptions"
-				])*/
 			}
-			
+
+			if ( it.powerstrip_id ) {
+				def outlet1Data = it.outlets[0]
+				deviceList[outlet1Data.outlet_id] = it.name + " " + outlet1Data.name
+				state.deviceDataArr.push(['name'  : it.name + " " + outlet1Data.name,
+										  'id'      : outlet1Data.outlet_id,
+										  'type'    : "powerstripOutlet",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/powerstripCallback",
+										  'subsPath': "/powerstrips/${it.powerstrip_id}/subscriptions"
+				])
+
+				def outlet2Data = it.outlets[1]
+				deviceList[outlet2Data.outlet_id] = it.name + " " + outlet2Data.name
+				state.deviceDataArr.push(['name'  : it.name + " " + outlet2Data.name,
+										  'id'      : outlet2Data.outlet_id,
+										  'type'    : "powerstripOutlet",
+										  'serial'  : it.serial,
+										  'data'    : it,
+										  'subsSuff': "/powerstripCallback",
+										  'subsPath': "/powerstrips/${it.powerstrip_id}/subscriptions"
+				])
+
+				//this is commented out cuz we install and handle outlets individualy
+				/*
+                deviceList["${it.powerstrip_id}"] = it.name
+                state.deviceDataArr.push(['name'  : it.name,
+                                        'id'      : it.powerstrip_id,
+                                        'type'    : "powerstrip",
+                                        'serial'  : it.serial,
+                                        'data'    : it,
+                                        'subsSuff': "/powerstripCallback",
+                                        'subsPath': "/powerstrips/${it.powerstrip_id}/subscriptions"
+                ])*/
+			}
+
 			if ( it.sensor_pod_id ) {
 				deviceList["${it.sensor_pod_id}"] = it.name
 				state.deviceDataArr.push(['name'  : it.name,
-										 'id'     : it.sensor_pod_id,
-										 'type'   : "sensor_pod",
-										 'serial' : it.serial,
-										 'data'   : it,
-										 'subsSuff': "/sensor_podCallback",
-										 'subsPath': "/sensor_pods/${it.sensor_pod_id}/subscriptions"
+										  'id'     : it.sensor_pod_id,
+										  'type'   : "sensor_pod",
+										  'serial' : it.serial,
+										  'data'   : it,
+										  'subsSuff': "/sensor_podCallback",
+										  'subsPath': "/sensor_pods/${it.sensor_pod_id}/subscriptions"
 				])
-			} 
-                    
-			
+			}
+
+
 			if ( it.piggy_bank_id ) {
 				deviceList["${it.piggy_bank_id}"]   = it.name
 				state.deviceDataArr.push(['name'    : it.name,
@@ -291,8 +296,8 @@ def getDeviceList()
 										  'subsSuff': "/piggy_bankCallback",
 										  'subsPath': "/piggy_banks/${it.piggy_bank_id}/subscriptions"
 				])
-			} 
-                
+			}
+
 			if ( it.eggtray_id ) {
 				deviceList["${it.eggtray_id}"]      = it.name
 				state.deviceDataArr.push(['name'    : it.name,
@@ -307,7 +312,7 @@ def getDeviceList()
 		}
 	}
 
-  	return deviceList
+	return deviceList
 }
 
 def initialize()
@@ -320,19 +325,19 @@ def initialize()
 		state.deviceDataArr.each {
 			if ( it.id == deviceId ) {
 				switch(it.type) {
-                
-                	case "propane_tank":
+
+					case "propane_tank":
 						log.debug "we have a Refuel"
 						createChildDevice("Quirky Refuel", deviceId, it.name, it.label)
 						createWinkSubscription( it.subsPath, it.subsSuff )
-                        pollPropaneTank(getChildDevice(deviceId))
+						pollPropaneTank(getChildDevice(deviceId))
 						break
-                        
-                	case "air_conditioner":
+
+					case "air_conditioner":
 						log.debug "we have an Aros"
 						createChildDevice("Quirky Aros", deviceId, it.name, it.label)
 						createWinkSubscription( it.subsPath, it.subsSuff )
-                        pollAros(getChildDevice(deviceId))
+						pollAros(getChildDevice(deviceId))
 						break
 
 					case "powerstrip":
@@ -340,79 +345,79 @@ def initialize()
 						createPowerstripChildren(it.data) //has sub-devices, so we call out to create kids
 						createWinkSubscription( it.subsPath, it.subsSuff )
 						break
-                        
+
 					case "powerstripOutlet":
 						log.debug "we have a Pivot Power Genius Outlet"
 						createChildDevice( "Quirky Pivot Power Genius", deviceId, it.name, it.name )
 						createWinkSubscription( it.subsPath, it.subsSuff )
-                        pollOutlet(getChildDevice(deviceId))
+						pollOutlet(getChildDevice(deviceId))
 						break
 
 					case "nimbusDial":
 						log.debug "we have a Nimbus Dial"
 						//createNimbusChildren(it.data) //has sub-devices, so we call out to create kids
-                        createChildDevice( "Quirky Nimbus", deviceId, it.name, it.name )
+						createChildDevice( "Quirky Nimbus", deviceId, it.name, it.name )
 						createWinkSubscription( it.subsPath, it.subsSuff )
-                        pollNimbus(getChildDevice(deviceId))
+						pollNimbus(getChildDevice(deviceId))
 						break
-         
+
 					case "cloud_clock":
 						log.debug "we have a Nimbus"
 						createNimbusChildren(it.data) //has sub-devices, so we call out to create kids
 						createWinkSubscription( it.subsPath, it.subsSuff )
-                        pollNimbus(getChildDevice(deviceId))
+						pollNimbus(getChildDevice(deviceId))
 						break
-                        
+
 					case "sensor_pod":
 						log.debug "we have a Spotter"
 						createChildDevice("Quirky Spotter", deviceId, it.name, it.label)
-                        createWinkSubscription( it.subsPath, it.subsSuff )
-                        getSensorPodUpdate(getChildDevice(deviceId))
+						createWinkSubscription( it.subsPath, it.subsSuff )
+						getSensorPodUpdate(getChildDevice(deviceId))
 						break
-                        
+
 					case "piggy_bank":
 						log.debug "we have a Piggy Bank"
 						createChildDevice("Quirky Porkfolio", deviceId, it.name, it.label)
-                        createWinkSubscription( it.subsPath, it.subsSuff )
-                        getPiggyBankUpdate(getChildDevice(deviceId))
+						createWinkSubscription( it.subsPath, it.subsSuff )
+						getPiggyBankUpdate(getChildDevice(deviceId))
 						break
 
 					case "eggtray":
 						log.debug "we have an Egg Minder"
 						createChildDevice("Quirky Eggtray", deviceId, it.name, it.label)
-                        createWinkSubscription( it.subsPath, it.subsSuff )
-                        getEggtrayUpdate(getChildDevice(deviceId))
-						break                     
+						createWinkSubscription( it.subsPath, it.subsSuff )
+						getEggtrayUpdate(getChildDevice(deviceId))
+						break
 				}
-			}                       
+			}
 		}
 	}
-        
-    // Delete any that are no longer in settings
+
+	// Delete any that are no longer in settings
 	def delete = getChildDevices().findAll { !settings.devices?.contains(it.deviceNetworkId) }
-    log.debug "deleting ${delete}"
-    delete.each() {
-        uninstallChildDevice(it)
+	log.debug "deleting ${delete}"
+	delete.each() {
+		uninstallChildDevice(it)
 		deleteChildDevice(it.deviceNetworkId)
-    }
+	}
 }
 
 def createChildDevice(deviceFile, dni, name, label)
 {
 	log.debug "In createChildDevice"
-    
+
 	try {
 		def existingDevice = getChildDevice(dni)
-        log.debug "existingDevice = ${existingDevice}"
-        
+		log.debug "existingDevice = ${existingDevice}"
+
 		if(!existingDevice) {
 			log.debug "Creating child"
 			def childDevice = addChildDevice(app.namespace, deviceFile, dni, null, [name: name, label: label, completedSetup: true])
 		} else {
 			log.debug "Device $dni already exists"
 		}
-	} 
-    catch (e) {
+	}
+	catch (e) {
 		log.error "Error creating device: ${e}"
 	}
 }
@@ -424,14 +429,14 @@ def createWinkSubscription(path, suffix)
 	def callbackUrl = buildCallbackUrl(suffix)
 
 	httpPostJson([
-		uri : apiUrl(),
-		path: path,
-		body: ['callback': callbackUrl],
-		headers : ['Authorization' : 'Bearer ' + state.vendorAccessToken]
+			uri : apiUrl(),
+			path: path,
+			body: ['callback': callbackUrl],
+			headers : ['Authorization' : 'Bearer ' + appSettings.vendorAccessToken] //state.vendorAccessToken
 	],)
-	{ 	response ->
-		log.debug "Created subscription ID ${response.data.data.subscription_id}"
-	}
+			{ 	response ->
+				log.debug "Created subscription ID ${response.data.data.subscription_id}"
+			}
 }
 
 def subscriberIdentifyVerification()
@@ -450,8 +455,8 @@ def uninstalled()
 	removeWinkSubscriptions()
 
 	removeChildDevices(getChildDevices())
-    
-    unschedule()
+
+	unschedule()
 }
 
 def removeWinkSubscriptions()
@@ -464,7 +469,7 @@ def removeWinkSubscriptions()
 			apiGet(it.subsPath) { response ->
 				response.data.data.each {
 					if ( it.subscription_id ) {
-                    	log.debug "Deleting Subscription: ${path}" + "/" + "${it.subscription_id}"
+						log.debug "Deleting Subscription: ${path}" + "/" + "${it.subscription_id}"
 						deleteWinkSubscription(path + "/", it.subscription_id)
 					}
 				}
@@ -483,31 +488,31 @@ private removeChildDevices(delete)
 	}
 }
 
-def uninstallChildDevice(childDevice) 
+def uninstallChildDevice(childDevice)
 {
 	log.debug "in uninstallChildDevice"
-    
-    // Remove the childs subscription
-    def deviceData = state.deviceDataArr.findAll { it.id == childDevice.device.deviceNetworkId } 	
-    deviceData.each() {
-        def path = it.subsPath
-        apiGet(it.subsPath) { response ->
+
+	// Remove the childs subscription
+	def deviceData = state.deviceDataArr.findAll { it.id == childDevice.device.deviceNetworkId }
+	deviceData.each() {
+		def path = it.subsPath
+		apiGet(it.subsPath) { response ->
 			response.data.data.each {
 				if ( it.subscription_id ) {
 					deleteWinkSubscription(path + "/", it.subscription_id)
 				}
 			}
-		}    
-    }
+		}
+	}
 
-    //now remove the child from settings. Unselects from list of devices, not delete
-    log.debug "Settings size = ${settings['devices']}"
-    
-    if (!settings['devices']) //empty list, bail
-    	return
-    
-    def newDeviceList = settings['devices'] - childDevice.device.deviceNetworkId
-    app.updateSetting("devices", newDeviceList)
+	//now remove the child from settings. Unselects from list of devices, not delete
+	log.debug "Settings size = ${settings['devices']}"
+
+	if (!settings['devices']) //empty list, bail
+		return
+
+	def newDeviceList = settings['devices'] - childDevice.device.deviceNetworkId
+	app.updateSetting("devices", newDeviceList)
 }
 
 def updateWinkSubscriptions()
@@ -517,12 +522,12 @@ def updateWinkSubscriptions()
 	state.deviceDataArr.each() {
 		if (it.subsPath) {
 			def path = it.subsPath
-            def suffix = it.subsSuff
+			def suffix = it.subsSuff
 			apiGet(it.subsPath) { response ->
 				response.data.data.each {
 					if ( it.subscription_id ) {
 						deleteWinkSubscription(path + "/", it.subscription_id)
-                        createWinkSubscription(path, suffix)
+						createWinkSubscription(path, suffix)
 					}
 				}
 			}
@@ -533,13 +538,13 @@ def updateWinkSubscriptions()
 def deleteWinkSubscription(path, subscriptionId)
 {
 	httpDelete([
-		uri : apiUrl(),
-		path: path + subscriptionId,
-		headers : [ 'Authorization' : 'Bearer ' + state.vendorAccessToken ]
+			uri : apiUrl(),
+			path: path + subscriptionId,
+			headers : [ 'Authorization' : 'Bearer ' + appSettings.vendorAccessToken ] //state.vendorAccessToken
 	],)
-	{	response ->
-		log.debug "Subscription ${subscriptionId} deleted"
-	}
+			{	response ->
+				log.debug "Subscription ${subscriptionId} deleted"
+			}
 }
 
 def buildCallbackUrl(suffix)
@@ -552,114 +557,114 @@ def buildCallbackUrl(suffix)
 
 def checkToken() {
 	log.debug "In checkToken"
-    
-    def tokenStatus = "bad"
-    
-    //check existing token by calling user device list
-    try {
-    	httpGet([ uri		: apiUrl(),
-    		  	  path 		: "/users/me/wink_devices",
-               	  headers 	: [ 'Authorization' : 'Bearer ' + state.vendorAccessToken ]
+
+	def tokenStatus = "bad"
+
+	//check existing token by calling user device list
+	try {
+		httpGet([ uri		: apiUrl(),
+				  path 		: "/users/me/wink_devices",
+				  headers 	: [ 'Authorization' : 'Bearer ' + appSettings.vendorAccessToken ] //state.vendorAccessToken
 		])
-		{ response ->
-        	debugOut "Response is: ${response.status}"
-            if ( response.status == 200 ) {
-            	debugOut "The current token is good"
-                tokenStatus = "good"
-            }
-		}
+				{ response ->
+					debugOut "Response is: ${response.status}"
+					if ( response.status == 200 ) {
+						debugOut "The current token is good"
+						tokenStatus = "good"
+					}
+				}
 	}
-    catch(Exception e) {
-    	debugOut "Current access token did not work. Trying refresh Token now."
-    }
+	catch(Exception e) {
+		debugOut "Current access token did not work. Trying refresh Token now."
+	}
 
 	if ( tokenStatus == "bad" ) {
-        //Let's try the refresh token now
-    	debugOut "Trying to refresh tokens"
-        
-    	def tokenParams = [ client_id		: getClientId(),
-        					client_secret	: getClientSecret(),
+		//Let's try the refresh token now
+		debugOut "Trying to refresh tokens"
+
+		def tokenParams = [ client_id		: getClientId(),
+							client_secret	: getClientSecret(),
 							grant_type		: "refresh_token",
-							refresh_token	: state.vendorRefreshToken ]
+							refresh_token	: appSettings.vendorRefreshToken ] //state.vendorRefreshToken
 
 		def tokenUrl = getVendorTokenPath() + toQueryString(tokenParams)
-        
+
 		def params = [
-			uri: tokenUrl,
+				uri: tokenUrl,
 		]
-        
-    	try {
+
+		try {
 			httpPost(params) { response ->
-            	debugOut "Successfully refreshed tokens with code: ${response.status}"
-            	state.vendorRefreshToken = response.data.refresh_token
-            	state.vendorAccessToken = response.data.access_token
-            	tokenStatus = "good"
-        	}
+				debugOut "Successfully refreshed tokens with code: ${response.status}"
+				state.vendorRefreshToken = response.data.refresh_token
+				state.vendorAccessToken = response.data.access_token
+				tokenStatus = "good"
+			}
 		}
-    	catch(Exception e) {
-    		debugOut "Unable to refresh token. Error ${e}"
-    	}
+		catch(Exception e) {
+			debugOut "Unable to refresh token. Error ${e}"
+		}
 	}
-    
-    if ( tokenStatus == "bad" ) {
-    	return "Error: Unable to refresh Token"
-    } else {
-    	return null //no errors
-    }
+
+	if ( tokenStatus == "bad" ) {
+		return "Error: Unable to refresh Token"
+	} else {
+		return null //no errors
+	}
 }
 
 def apiGet(String path, Closure callback)
 {
 	log.debug "In apiGet with path: $path"
-    
-    //check to see if our token has expired
-    def status = checkToken()
-    debugOut "Status of checktoken: ${status}"
-    
-    if ( status ) {
-    	debugOut "Error! Status: ${status}"
-        return
-    } else {
-    	debugOut "Token is good. Call the command"
-    }
-    
-	httpGet([
-		uri : apiUrl(),
-		path : path,
-		headers : [ 'Authorization' : 'Bearer ' + state.vendorAccessToken ]
-	])
-	{
-		response ->
-			callback.call(response)
+
+	//check to see if our token has expired
+	def status = checkToken()
+	debugOut "Status of checktoken: ${status}"
+
+	if ( status ) {
+		debugOut "Error! Status: ${status}"
+		return
+	} else {
+		debugOut "Token is good. Call the command"
 	}
+
+	httpGet([
+			uri : apiUrl(),
+			path : path,
+			headers : [ 'Authorization' : 'Bearer ' + appSettings.vendorAccessToken ] //state.vendorAccessToken
+	])
+			{
+				response ->
+					callback.call(response)
+			}
 }
 
 def apiPut(String path, cmd, Closure callback)
 {
 	log.debug "In apiPut with path: $path and cmd: $cmd"
-    
-    //check to see if our token has expired
-    def status = checkToken()
-    debugOut "Status of checktoken: ${status}"
-    
-    if ( status ) {
-    	debugOut "Error! Status: ${status}"
-        return
-    } else {
-    	debugOut "Token is good. Call the command"
-    }
-    
+
+	//check to see if our token has expired
+	def status = checkToken()
+	debugOut "Status of checktoken: ${status}"
+
+	if ( status ) {
+		debugOut "Error! Status: ${status}"
+		return
+	} else {
+		debugOut "Token is good. Call the command"
+	}
+
 	httpPutJson([
-		uri : apiUrl(),
-		path: path,
-		body: cmd,
-		headers : [ 'Authorization' : 'Bearer ' + state.vendorAccessToken ]
+			uri : apiUrl(),
+			path: path,
+			body: cmd,
+			headers : [ 'Authorization' : 'Bearer ' + appSettings.vendorAccessToken ] //state.vendorAccessToken
 	])
 
-	{
-		response ->
-			callback.call(response)
-	}
+			{
+				response ->
+					callback.call(response)
+			}
 }
 
 def poll(childDevice)
@@ -704,9 +709,9 @@ def dollarize(int money)
 def debugEvent(message, displayEvent) {
 
 	def results = [
-		name: "appdebug",
-		descriptionText: message,
-		displayed: displayEvent
+			name: "appdebug",
+			descriptionText: message,
+			displayed: displayEvent
 	]
 	log.debug "Generating AppDebug Event: ${results}"
 	sendEvent (results)
@@ -723,18 +728,18 @@ String toQueryString(Map m) {
 def pollPropaneTank(childDevice)
 {
 	log.debug "Polling Refuel ${childDevice.device.deviceNetworkId}"
-    
-    
+
+
 	apiGet("/propane_tanks/" + childDevice.device.deviceNetworkId) { response ->
 		def status = response.data.data.last_reading
-        
-        log.debug "Got tank data!"
-        
-        childDevice?.sendEvent(name:"battery", value:status.battery * 100, unit:"") 
-        
-        childDevice?.sendEvent(name:"tankLevel", value:status.remaining * 100, unit:"")
-        
-        //childDevice?.sendEvent(name:"tankChanged", value:new Date((status.tank_changed_at as long)*1000), unit:"")
+
+		log.debug "Got tank data!"
+
+		childDevice?.sendEvent(name:"battery", value:status.battery * 100, unit:"")
+
+		childDevice?.sendEvent(name:"tankLevel", value:status.remaining * 100, unit:"")
+
+		//childDevice?.sendEvent(name:"tankChanged", value:new Date((status.tank_changed_at as long)*1000), unit:"")
 	}
 }
 
@@ -744,7 +749,7 @@ def propaneTankEventHandler()
 
 	def json = request.JSON
 	def dni = getChildDevice(json.propane_tank_id)
-    
+
 	pollPropaneTank(dni)   //sometimes events are stale, poll for all latest states
 
 	def html = """{"code":200,"message":"OK"}"""
@@ -760,26 +765,26 @@ def getSensorPodUpdate(childDevice)
 		def status = response.data.data.last_reading
 
 		status.loudness ? childDevice?.sendEvent(name:"sound",value:"active",unit:"") :
-			childDevice?.sendEvent(name:"sound",value:"inactive",unit:"")
+				childDevice?.sendEvent(name:"sound",value:"inactive",unit:"")
 
 		status.brightness ? childDevice?.sendEvent(name:"light",value:"active",unit:"") :
-			childDevice?.sendEvent(name:"light",value:"inactive",unit:"")
+				childDevice?.sendEvent(name:"light",value:"inactive",unit:"")
 
 		status.vibration ? childDevice?.sendEvent(name:"acceleration",value:"active",unit:"") :
-			childDevice?.sendEvent(name:"acceleration",value:"inactive",unit:"")
+				childDevice?.sendEvent(name:"acceleration",value:"inactive",unit:"")
 
 		status.external_power ? childDevice?.sendEvent(name:"powerSource",value:"powered",unit:"") :
-			childDevice?.sendEvent(name:"powerSource",value:"battery",unit:"")
+				childDevice?.sendEvent(name:"powerSource",value:"battery",unit:"")
 
 		childDevice?.sendEvent(name:"humidity",value:status.humidity,unit:"")
 
 		if (status.battery != null)
 			childDevice?.sendEvent(name:"battery",value:(status.battery * 100).toInteger(),unit:"")
-        else
-        	childDevice?.sendEvent(name:"battery",value:0,unit:"")
+		else
+			childDevice?.sendEvent(name:"battery",value:0,unit:"")
 
 		// Need to get users pref of temp scale here
-        if ( status.temperature != null )
+		if ( status.temperature != null )
 			childDevice?.sendEvent(name:"temperature",value:cToF(status.temperature),unit:"F")
 	}
 }
@@ -824,7 +829,7 @@ def cloud_clockEventHandler()
 	log.debug "In Nimbus Event Handler..."
 
 	def json = request.JSON
-    
+
 	def dials = json.dials
 
 	def html = """{"code":200,"message":"OK"}"""
@@ -833,10 +838,10 @@ def cloud_clockEventHandler()
 	if ( dials ) {
 		dials.each() {
 			def childDevice = getChildDevice(it.dial_id)
-            
-            if (!childDevice) // not a smartthings device, user did not pick it
-            	return
-                
+
+			if (!childDevice) // not a smartthings device, user did not pick it
+				return
+
 			childDevice?.sendEvent( name : "dial", value : it.label , unit : "" )
 			childDevice?.sendEvent( name : "info", value : it.name , unit : "" )
 		}
@@ -864,11 +869,11 @@ def pollNimbus(dni)
 	if ( dials ) {
 		dials.each() {
 			def childDevice = getChildDevice(it.dial_id)
-            
-            if (!childDevice) //this is not a SmartThings dial (user did not pick)
-            	return
-            
-            //log.debug "Dial event ${childDevice}"
+
+			if (!childDevice) //this is not a SmartThings dial (user did not pick)
+				return
+
+			//log.debug "Dial event ${childDevice}"
 			childDevice?.sendEvent( name : "dial", value : it.label, unit : "" )
 			childDevice?.sendEvent( name : "info", value : it.name , unit : "" )
 
@@ -1040,22 +1045,28 @@ def getPiggyBankUpdate(childDevice)
 	apiGet("/piggy_banks/" + childDevice.device.deviceNetworkId) { response ->
 		def status = response.data.data
 		def alertData = status.triggers
+		def now = new Date()
+		def longTime = now.getTime()/1000
+		//if (longTime != null) {
+		state.lastCheckTime = longTime //.toInteger() //gets java.lang.NullPointerException: Cannot invoke method toInteger() on null object @line 1055 (doCall)
+		//}
 
 		if (( alertData.enabled ) && ( state.lastCheckTime )) {
-			if ( alertData.triggered_at[0].toInteger() > state.lastCheckTime ) {
+			//if ( alertData.triggered_at[0] != null){
+			def alertDataTemp = alertData.triggered_at[0] //.toInteger() // gets same error
+			if ( alertDataTemp > state.lastCheckTime ) {
 				childDevice?.sendEvent(name:"acceleration",value:"active",unit:"")
+				log.debug "Alert at ${alertDataTemp}"
+				log.debug "Alert Last Checked: ${state.lastCheckTime}"
 			} else {
 				childDevice?.sendEvent(name:"acceleration",value:"inactive",unit:"")
 			}
+			//}
 		}
 
 		childDevice?.sendEvent(name:"goal",value:dollarize(status.savings_goal),unit:"")
 
 		childDevice?.sendEvent(name:"balance",value:dollarize(status.balance),unit:"")
-
-		def now = new Date()
-		def longTime = now.getTime()/1000
-		state.lastCheckTime = longTime.toInteger()
 	}
 }
 
@@ -1085,16 +1096,16 @@ def powerstripEventHandler()
 
 	def json = request.JSON
 	def outlets = json.outlets
-    
-    def html = """{"code":200,"message":"OK"}"""
+
+	def html = """{"code":200,"message":"OK"}"""
 	render contentType: 'application/json', data: html
 
 	outlets.each() {
 		def dni = getChildDevice(it.outlet_id)
-        
-        if(!dni) //this is not a smartthings device cuz user did not pick it
-        	return
-            
+
+		if(!dni) //this is not a smartthings device cuz user did not pick it
+			return
+
 		pollOutlet(dni)   //sometimes events are stale, poll for all latest states
 	}
 }
@@ -1107,7 +1118,7 @@ def pollOutlet(childDevice)
 	apiGet("/outlets/" + childDevice.device.deviceNetworkId) { response ->
 		def data = response.data.data
 		data.powered ? childDevice?.sendEvent(name:"switch",value:"on") :
-			childDevice?.sendEvent(name:"switch",value:"off")
+				childDevice?.sendEvent(name:"switch",value:"off")
 	}
 }
 
@@ -1136,7 +1147,7 @@ def createPowerstripChildren(deviceData)
 
 	deviceData.outlets.each {
 		createChildDevice( "Quirky Pivot Power Genius", it.outlet_id, it.name, "$powerstripName ${it.name}" )
-        pollOutlet(getChildDevice(it.outlet_id))
+		pollOutlet(getChildDevice(it.outlet_id))
 	}
 }
 
@@ -1156,7 +1167,7 @@ def arosFanSpeed(childDevice, fanSpeed)
 {
 	apiPut("/air_conditioners/" + childDevice.device.deviceNetworkId, ["desired_state": fanSpeed]) { response ->
 		def data = response.data.data
-        log.debug "New Fan Speed: ${fanSpeed}"
+		log.debug "New Fan Speed: ${fanSpeed}"
 	}
 }
 
@@ -1164,7 +1175,7 @@ def arosMode(childDevice, newMode)
 {
 	apiPut("/air_conditioners/" + childDevice.device.deviceNetworkId, [desired_state: [mode: newMode]]) { response ->
 		def data = response.data.data
-        log.debug "New arosMode: ${mode}"
+		log.debug "New arosMode: ${mode}"
 	}
 }
 
@@ -1190,7 +1201,7 @@ def airConditionerEventHandler()
 
 	def json = request.JSON
 	def dni = getChildDevice(json.air_conditioner_id)
-    
+
 	pollAros(dni)   //sometimes events are stale, poll for all latest states
 
 	def html = """{"code":200,"message":"OK"}"""
@@ -1203,59 +1214,59 @@ def pollAros(childDevice)
 	def locationScale = location.getTemperatureScale()
 
 	//log.debug "Polling Aros ${childDevice.device.deviceNetworkId}"
-    //log.debug "Location Scale: ${locationScale}"
-    
+	//log.debug "Location Scale: ${locationScale}"
+
 	apiGet("/air_conditioners/" + childDevice.device.deviceNetworkId) { response ->
 		def status = response.data.data.last_reading
-        
-        status.powered ? childDevice?.sendEvent(name:"switch",value:"on") :
-			childDevice?.sendEvent(name:"switch",value:"off")
-        log.debug "Powered Status: ${status.powered}"
-        
-		if ( status.temperature != null ) {	
-        	if ( locationScale == "F" ) {
-            	def displayValue = cToF(status.temperature) as int
-                childDevice?.sendEvent(name:"temperature",value:displayValue,unit:"F")
-            } else {
-            	def displayValue = status.temperature as int
-				childDevice?.sendEvent(name:"temperature",value:displayValue,unit:"C")
-            }
-            log.debug "Temperature Status: ${status.temperature}"
-        }
-        
-        if ( status.desired_max_set_point != null ) {
+
+		status.powered ? childDevice?.sendEvent(name:"switch",value:"on") :
+				childDevice?.sendEvent(name:"switch",value:"off")
+		log.debug "Powered Status: ${status.powered}"
+
+		if ( status.temperature != null ) {
 			if ( locationScale == "F" ) {
-            	def displaySetPointValue = cToF(status.desired_max_set_point)
-                displaySetPointValue = displaySetPointValue as double
-                displaySetPointValue = displaySetPointValue.trunc(2)
-        		childDevice?.sendEvent(name:"coolingSetpoint",value:displaySetPointValue)
-            } else {
-            	def displaySetPointCValue = status.desired_max_set_point as double
-                displaySetPointCValue = displaySetPointCValue.trunc(2)
-            	childDevice?.sendEvent(name:"coolingSetpoint",value:displaySetPointCValue)
-            } 
-            log.debug "coolingSetpoint Status: ${status.desired_max_set_point}"
-        }
-        
-        if ( status.desired_fan_speed != null ) {
-        	if ( (status.desired_fan_speed == 0.333) || (status.desired_fan_speed == 0.33) )
-            	childDevice?.sendEvent(name:"fanMode",value:"fanLow", descriptionText: "$childDevice fan speed is LOW")
-            if ( (status.desired_fan_speed == 0.666) || (status.desired_fan_speed == 0.66) )
-            	childDevice?.sendEvent(name:"fanMode",value:"fanMed", descriptionText: "$childDevice fan speed is MED")
-            if ( (status.desired_fan_speed == 0.999) || (status.desired_fan_speed == 1.0) )
-            	childDevice?.sendEvent(name:"fanMode",value:"fanHigh", descriptionText: "$childDevice fan speed is HIGH")    
-        }
-        log.debug "desired_fan_speed Status: ${status.desired_fan_speed}"
-        
-        if ( status.desired_mode != null ) {
-        	if ( status.desired_mode == "fan_only" )
-            	childDevice?.sendEvent(name:"mode",value:"fan_only", descriptionText: "$childDevice mode is FAN ONLY")
-            if ( status.desired_mode == "auto_eco" )
-            	childDevice?.sendEvent(name:"mode",value:"auto_eco", descriptionText: "$childDevice mode is ECO")
-            if ( status.desired_mode == "cool_only" )
-            	childDevice?.sendEvent(name:"mode",value:"cool_only", descriptionText: "$childDevice mode is COOL")    
-        }
-        log.debug "desired_mode Status: ${status.desired_mode}"
+				def displayValue = cToF(status.temperature) as int
+				childDevice?.sendEvent(name:"temperature",value:displayValue,unit:"F")
+			} else {
+				def displayValue = status.temperature as int
+				childDevice?.sendEvent(name:"temperature",value:displayValue,unit:"C")
+			}
+			log.debug "Temperature Status: ${status.temperature}"
+		}
+
+		if ( status.desired_max_set_point != null ) {
+			if ( locationScale == "F" ) {
+				def displaySetPointValue = cToF(status.desired_max_set_point)
+				displaySetPointValue = displaySetPointValue as double
+				displaySetPointValue = displaySetPointValue.trunc(2)
+				childDevice?.sendEvent(name:"coolingSetpoint",value:displaySetPointValue)
+			} else {
+				def displaySetPointCValue = status.desired_max_set_point as double
+				displaySetPointCValue = displaySetPointCValue.trunc(2)
+				childDevice?.sendEvent(name:"coolingSetpoint",value:displaySetPointCValue)
+			}
+			log.debug "coolingSetpoint Status: ${status.desired_max_set_point}"
+		}
+
+		if ( status.desired_fan_speed != null ) {
+			if ( (status.desired_fan_speed == 0.333) || (status.desired_fan_speed == 0.33) )
+				childDevice?.sendEvent(name:"fanMode",value:"fanLow", descriptionText: "$childDevice fan speed is LOW")
+			if ( (status.desired_fan_speed == 0.666) || (status.desired_fan_speed == 0.66) )
+				childDevice?.sendEvent(name:"fanMode",value:"fanMed", descriptionText: "$childDevice fan speed is MED")
+			if ( (status.desired_fan_speed == 0.999) || (status.desired_fan_speed == 1.0) )
+				childDevice?.sendEvent(name:"fanMode",value:"fanHigh", descriptionText: "$childDevice fan speed is HIGH")
+		}
+		log.debug "desired_fan_speed Status: ${status.desired_fan_speed}"
+
+		if ( status.desired_mode != null ) {
+			if ( status.desired_mode == "fan_only" )
+				childDevice?.sendEvent(name:"mode",value:"fan_only", descriptionText: "$childDevice mode is FAN ONLY")
+			if ( status.desired_mode == "auto_eco" )
+				childDevice?.sendEvent(name:"mode",value:"auto_eco", descriptionText: "$childDevice mode is ECO")
+			if ( status.desired_mode == "cool_only" )
+				childDevice?.sendEvent(name:"mode",value:"cool_only", descriptionText: "$childDevice mode is COOL")
+		}
+		log.debug "desired_mode Status: ${status.desired_mode}"
 	}
 }
 
@@ -1287,7 +1298,7 @@ def authPage() {
 	if(canInstallLabs()) {
 		def description = null
 
-		if (state.vendorAccessToken == null) {
+		if (appSettings.vendorAccessToken == null) { //state.vendorAccessToken
 			log.debug "About to create access token."
 
 			createAccessToken()
@@ -1300,7 +1311,7 @@ def authPage() {
 				section { href url:redirectUrl, style:"embedded", required:false, title:"Connect to ${getVendorName()}:", description:description }
 			}
 		} else {
-        
+
 			description = "Tap 'Next' to proceed"
 
 			return dynamicPage(name: "Credentials", title: "Credentials Accepted!", nextPage:"listDevices", uninstall: true, install:false) {
@@ -1311,7 +1322,6 @@ def authPage() {
 	else
 	{
 		def upgradeNeeded = """Before you can participate in SmartThings Labs we need to update your hub.
-
 Please contact our support team at labs@smartthings.com and tell them you want access to SmartThings Labs!"""
 
 
@@ -1331,9 +1341,9 @@ def oauthInitUrl() {
 	state.oauthInitState = UUID.randomUUID().toString()
 
 	def oauthParams = [ response_type: "code",
-		client_id: getClientId(),
-		state: state.oauthInitState,
-		redirect_uri: buildRedirectUrl("receiveToken") ]
+						client_id: getClientId(),
+						state: state.oauthInitState,
+						redirect_uri: buildRedirectUrl("receiveToken") ]
 
 	return getVendorAuthPath() + toQueryString(oauthParams)
 }
@@ -1347,46 +1357,48 @@ def buildRedirectUrl(endPoint) {
 def receiveToken() {
 	log.debug "In receiveToken"
 	def html = ""
-    def badCredentials = false
-    
+	def badCredentials = false
+
 	def oauthParams = [ client_secret: getClientSecret(),
-		grant_type: "authorization_code",
-		code: params.code ]
+						grant_type: "authorization_code",
+						code: params.code ]
 
 	def tokenUrl = getVendorTokenPath() + toQueryString(oauthParams)
 	def params = [
-		uri: tokenUrl,
+			uri: tokenUrl,
 	]
 
 	/* OAuth Step 2: Request access token with our client Secret and OAuth "Code" */
 	try
-    { 
-    	httpPost(params) { response ->
+	{
+		//httpPost(params) { response ->
 
-			def data = response.data.data
+		//def data = response.data.data
 
-			state.vendorRefreshToken = data.refresh_token //these may need to be adjusted depending on depth of returned data
-			state.vendorAccessToken = data.access_token
-        	log.debug "Vendor Access Token: ${state.vendorAccessToken}"
-			log.debug "Vendor Refresh Token: ${state.vendorRefreshToken}"
-		}
-    }
-    catch(Exception e)
-    {
-    	badCredentials = true
-        log.debug "Login unsuccessful!"
-    }
-    
-    def displayMessage = ""
-    
-    if ( badCredentials ) {
-    	displayMessage = "Unable to login to your " + getVendorName() + " account using these Credentials"
-    } else {
-    	displayMessage = "We have located your " + getVendorName() + " account."
-    }
+		//state.vendorRefreshToken = data.refresh_token //these may need to be adjusted depending on depth of returned data
+		//state.vendorAccessToken = data.access_token
+		state.vendorRefreshToken = appSettings.vendorRefreshToken
+		state.vendorAccessToken = appSettings.vendorAccessToken
+		log.debug "Vendor Access Token: ${state.vendorAccessToken}"
+		log.debug "Vendor Refresh Token: ${state.vendorRefreshToken}"
+		//}
+	}
+	catch(Exception e)
+	{
+		badCredentials = true
+		log.debug "Login unsuccessful!"
+	}
+
+	def displayMessage = ""
+
+	if ( badCredentials ) {
+		displayMessage = "Unable to login to your " + getVendorName() + " account using these Credentials"
+	} else {
+		displayMessage = "We have located your " + getVendorName() + " account."
+	}
 
 	//log.debug "token = ${state.vendorAccessToken}"
-    
+
 	/* OAuth Step 3: Use the access token to call into the vendor API throughout your code using state.vendorAccessToken. */
 	html = """
         <!DOCTYPE html>
